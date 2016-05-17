@@ -1,0 +1,51 @@
+﻿<!DOCTYPE html>
+<html ng-app="WebCrawler" ng-controller="DashboardCtrl">
+<head>
+    <title></title>
+	<meta charset="utf-8" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/angular.js/1.5.5/angular.min.js"></script>
+    
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="index.css" />
+</head>
+<body >
+    <h1>{{title}}</h1>
+    <h2>A super fast web crawler</h2>
+
+    <div class="search container">
+        <div class="form-group">
+            <input placeholder="serch index" class="form-control"/>
+        </div>
+        <button class="btn btn-primary" ng-disabled="dashboard.sizeoftable < 1">Search</button>
+    </div>
+    <div class="container">
+        <h3>State: {{dashboard.crawlingstate}}</h3>
+        <div class="container row">
+            <div class="system-stats col-xs-3">
+                <p class="stat">cpu usage: {{dashboard.cpuusage}}</p>
+                <p class="stat">avaiable memory: {{dashboard.ramavailable}}</p>
+                <p class="stat">available threads: {{dashboard.threadcount}}</p>
+                <p class="stat">size of queue {{dashboard.sizeofqueue}}</p>
+                <p class="stat">size of table {{dashboard.sizeoftable}}</p>
+            </div>
+
+            <div class="list col-xs-4">
+                <p class="stat">last 10 crawled urls</p>
+                <p ng-repeat="url in asArray(dashboard.last10)">{{url}}</p>
+            </div>
+            <div class="list col-xs-4">
+                <p class="stat">error urls</p>
+                <p ng-repeat="url in asArray(dashboard.errorurls)">{{url}}</p>
+            </div>
+        </div>
+        <div id="controls">
+            <ul class="list-unstyled list-inline">
+                <li class="control"><button class="btn btn-primary" ng-click="startCrawler()" ng-disabled="dashboard.crawlingstate == 'Deleting Index'">Start</button></li>
+                <li class="control"><button class="btn btn-warn" ng-click="stopCrawler()"  ng-disabled="dashboard.crawlingstate == 'Deleting Index'">Stop</button></li>
+                <li class="control"><button class="btn btn-warn" ng-click="clearIndex()"  ng-disabled="dashboard.crawlingstate == 'Deleting Index'">Clear Index</button></li>
+            </ul>
+        </div>
+    </div>
+    <script src="app.js"></script>
+</body>
+</html>
