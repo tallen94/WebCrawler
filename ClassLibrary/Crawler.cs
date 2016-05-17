@@ -41,7 +41,7 @@ namespace ClassLibrary {
             LinkTable = TableClient.GetTableReference("sitetable");
             DashboardTable = TableClient.GetTableReference("dashboardtable");
 
-            PullDashboard();
+            
 
             LinkQueue.CreateIfNotExists();
             LinkTable.CreateIfNotExists();
@@ -50,6 +50,8 @@ namespace ClassLibrary {
             maxBatch = 10;
             LinkEntityQueue = new Queue<LinkEntity>();
             visitedLinks = new TrieTree();
+
+            PullDashboard();
         }
 
         public string CurrentState() {
@@ -72,7 +74,7 @@ namespace ClassLibrary {
 
         public string GetTitleForUrl(string url) {
             Uri uri = new Uri(url);
-            TableOperation retrieve = TableOperation.Retrieve<Dashboard>(uri.Authority, uri.AbsolutePath);
+            TableOperation retrieve = TableOperation.Retrieve<Dashboard>(uri.Authority, string.Join("@420;", uri.LocalPath.Split('/')));
             TableResult result = LinkTable.Execute(retrieve);
             LinkEntity entity = ((LinkEntity)result.Result);
             return entity.Title;
