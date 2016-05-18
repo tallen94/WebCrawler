@@ -1,4 +1,4 @@
-Big Bertha 3.0
+Big Bertha 1.0
 
 Big Bertha is a monster. You better hold on to your jim jams before you set her lose.
 
@@ -20,7 +20,7 @@ Storing visited links in the Azure table I used the domain as the primary key an
 
 I created a visual dashboard that updates itself every second and has controls to start, stop, and clear the cralwer. 
 
-Whait there is a Bertha 4.0? Yes.
+Whait there is a Bertha 2.0? Yes.
 
 This version will have the ability to save the visited links tree if for some reason the crawler gets stopped improperly. If it was crawling before it was stopped it can rebuild the tree and leave off from where it was since everthing else about its state is stored in Azure storage.
 
