@@ -41,9 +41,11 @@
         </div>
         <div id="controls">
             <ul class="list-unstyled list-inline">
-                <li class="control"><button class="btn btn-primary" ng-click="startCrawler()" ng-disabled="dashboard.crawlingstate == 'Deleting Index'">Start</button></li>
-                <li class="control"><button class="btn btn-warn" ng-click="stopCrawler()"  ng-disabled="dashboard.crawlingstate == 'Deleting Index'">Stop</button></li>
-                <!--<li class="control"><button class="btn btn-warn" ng-click="clearIndex()"  ng-disabled="dashboard.crawlingstate == 'Deleting Index'">Clear Index</button></li>-->
+                <li class="control"><button class="btn btn-primary" ng-click="sendStart()" ng-disabled="dashboard.crawlingstate == 'Deleting Index'">Start</button></li>
+                <li class="control"><button class="btn" ng-click="sendCommand('Stop')"  ng-disabled="dashboard.crawlingstate == 'Deleting Index'">Stop</button></li>
+                <li class="control"><button class="btn" ng-click="sendCommand('Clear Index')"  ng-disabled="dashboard.crawlingstate == 'Deleting Index'">Clear Index</button></li>
+                <!--<li class="control"><button class="btn" ng-click="sendCommand('Write Visited')" ng-disabled="dashboard.crawlingstate == 'Deleting Index'">Write Visited</button></li>
+                <li class="control"><button class="btn" ng-click="sendCommand('New Dashboard')">New Dashboard</button></li>-->
             </ul>
         </div>
     </div>

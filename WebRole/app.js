@@ -22,25 +22,23 @@ angular.module("WebCrawler", [])
 
         UpdateDashboard();
 
-        $scope.startCrawler = function () {
-            $http.post("Admin.asmx/StartCrawling", {
+        $scope.sendCommand = function (command) {
+            var data = {
+                command: command
+            };
+            var config = {
                 'Content-Type': 'application/json',
                 'Accept': 'application/json'
-            });
+            };
+            $http.post("Admin.asmx/SendCommand", data, config);
         }
 
-        $scope.stopCrawler = function () {
-            $http.post("Admin.asmx/StopCrawling", {
+        $scope.sendStart = function () {
+            var config = {
                 'Content-Type': 'application/json',
                 'Accept': 'application/json'
-            });
-        }
-
-        $scope.clearIndex = function () {
-            $http.post("Admin.asmx/ClearIndex", {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json'
-            });
+            };
+            $http.post("Admin.asmx/StartCrawling",config);
         }
 
         $scope.asArray = function (arr) {

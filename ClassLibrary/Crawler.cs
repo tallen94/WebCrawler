@@ -22,14 +22,13 @@ namespace ClassLibrary {
         private CloudQueueClient QueueClient;
         private CloudTableClient TableClient;
         public CloudQueue LinkQueue;
-        public CloudQueue StateQueue;
+        public CloudQueue CommandQueue;
         public CloudTable LinkTable;
         public CloudTable DashboardTable;
         
         private Queue<LinkEntity> LinkEntityQueue;
         private TrieTree visitedLinks;
         private Dashboard dashboard;
-        private DateTime startTime;
 
         private Int64 maxBatch;
 
@@ -38,23 +37,35 @@ namespace ClassLibrary {
             QueueClient = StorageAccount.CreateCloudQueueClient();
             TableClient = StorageAccount.CreateCloudTableClient();
             LinkQueue = QueueClient.GetQueueReference("linkqueue");
-            StateQueue = QueueClient.GetQueueReference("statequeue");
+            CommandQueue = QueueClient.GetQueueReference("commandqueue");
             LinkTable = TableClient.GetTableReference("sitetable");
             DashboardTable = TableClient.GetTableReference("dashboardtable");
 
             LinkQueue.CreateIfNotExists();
             LinkTable.CreateIfNotExists();
-            StateQueue.CreateIfNotExists();
+            CommandQueue.CreateIfNotExists();
             DashboardTable.CreateIfNotExists();
             maxBatch = 10;
             LinkEntityQueue = new Queue<LinkEntity>();
             visitedLinks = new TrieTree();
 
-            PullDashboard();
+            NewDashboard();
         }
 
         public string CurrentState() {
             return dashboard.CrawlingState;
+        }
+
+        public TrieTree GetVisitedLinks() {
+            return visitedLinks;
+        }
+
+        public bool RebuildVisited() {
+            return visitedLinks.ReBuildIfCan();
+        }
+
+        public void WriteVisited() {
+            ThreadPool.QueueUserWorkItem(o => visitedLinks.SaveTree());
         }
 
         public Dictionary<string, string> GetDashboard() {
@@ -99,7 +110,7 @@ namespace ClassLibrary {
 
         public void SendCommand(string cmd) {
             CloudQueueMessage msg = new CloudQueueMessage(cmd);
-            StateQueue.AddMessage(msg);
+            CommandQueue.AddMessage(msg);
         }
 
         public void CrawlUrl(string url) {
@@ -281,6 +292,8 @@ namespace ClassLibrary {
             PerformanceCounter cpu = new PerformanceCounter("Processor", "% Processor Time", "_Total");
 
             dashboard.CpuUsage = cpu.NextValue();
+            Task.Delay(10);
+            dashboard.CpuUsage = cpu.NextValue();
             dashboard.RamAvailable = mem.NextValue();
             dashboard.ThreadCount = threadCt.NextValue();
 
@@ -301,9 +314,8 @@ namespace ClassLibrary {
             dashboard.SizeOfQueue = 0;
             dashboard.SizeOfTable = 0;
             dashboard.errorUris = "[]";
-            dashboard.BeganCrawlingAt = "";
+            dashboard.BeganCrawlingAt = "0:00:00:00";
             dashboard.CrawlingFor = "0:00:00:00";
-            
             LinkQueue.Clear();
         }
 

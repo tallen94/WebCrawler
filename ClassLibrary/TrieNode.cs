@@ -13,16 +13,20 @@ namespace ClassLibrary {
         private int numChildren;
         private bool isAllowed;
 
-        public TrieNode(string path) {
+        public TrieNode(string path, bool isAllowed) {
             children = new ConcurrentDictionary<string, TrieNode>();
             this.path = path;
             numChildren = 0;
-            this.isAllowed = true;
+            this.isAllowed = isAllowed;
         }
 
-        public TrieNode AddEntry(string entry) {
+        public ICollection<TrieNode> GetChildren() {
+            return children.Values;
+        }
+
+        public TrieNode AddEntry(string entry, bool isAllowed) {
             if (!ContainsChild(entry)) {
-                TrieNode child = new TrieNode(entry);
+                TrieNode child = new TrieNode(entry, isAllowed);
                 children.TryAdd(entry, child);
                 numChildren++;
                 return child;
@@ -31,7 +35,7 @@ namespace ClassLibrary {
             }
         }
         
-        public string GetPath() {
+        public string GetValue() {
             return path;
         }
 

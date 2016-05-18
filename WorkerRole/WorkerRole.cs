@@ -31,11 +31,18 @@ namespace WorkerRole
         {
             Trace.TraceInformation("WorkerRole is running");
             while(true) {
-                CloudQueueMessage state = crawler.StateQueue.GetMessage(TimeSpan.FromMinutes(5));
-                if (state != null) {
-                    switch (state.AsString) {
+                CloudQueueMessage command = crawler.CommandQueue.GetMessage(TimeSpan.FromMinutes(5));
+                if (command != null) {
+                    Debug.WriteLine(command.AsString);
+                    switch (command.AsString) {
+                        case "New Dashboard":
+                            crawler.NewDashboard();
+                            break;
                         case "New Crawl":
                             crawler.NewCrawl();
+                            break;
+                        case "Write Visited":
+                            crawler.WriteVisited();
                             break;
                         case "Stop":
                             crawler.Stop();
@@ -49,7 +56,7 @@ namespace WorkerRole
                         default:
                             break;
                     }
-                    crawler.StateQueue.DeleteMessage(state);
+                    crawler.CommandQueue.DeleteMessage(command);
                 }
                 if (crawler.CurrentState().Equals("Crawling")) {
                     CloudQueueMessage link = crawler.LinkQueue.GetMessage();
@@ -67,6 +74,10 @@ namespace WorkerRole
             while (true) {
                 Task.Delay(100);
                 crawler.UpdateDashboard();
+                /*
+                if (DateTime.Now.Hour == 9) {
+                    crawler.WriteVisited();
+                }*/
             }
         }
 
@@ -77,9 +88,11 @@ namespace WorkerRole
 
             // For information on handling configuration changes
             // see the MSDN topic at http://go.microsoft.com/fwlink/?LinkId=166357.
-
+            /*
+            if (crawler.CurrentState().Equals("Crawling")) {
+                crawler.RebuildVisited();
+            }*/
             bool result = base.OnStart();
-
             Trace.TraceInformation("WorkerRole has been started");
             ThreadPool.QueueUserWorkItem(o => MonitorDashboard());
             return result;

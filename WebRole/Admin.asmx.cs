@@ -43,13 +43,8 @@ namespace WebRole {
         }
 
         [WebMethod]
-        public void StopCrawling() {
-            crawler.SendCommand("Stop");
-        }
-
-        [WebMethod]
-        public void ClearIndex() {
-            crawler.SendCommand("Clear Index");
+        public void SendCommand(string command) {
+            crawler.SendCommand(command);
         }
 
         [WebMethod]

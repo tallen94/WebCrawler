@@ -1,20 +1,2 @@
-The azure instance is split into two roles WebRole and WorkerRole
-
-The Crawler instance is running on the worker role and the web role has its own instance for referencing the queues and tables. To start off, the crawler is stopped and it is started by adding the robots.txt files to the link queue. It parses these and starts crawling the sitemaps.  For crawling the sitemaps I realized that we dont actually care about storing the sitemap url, just that we crawl to it. If you run these crawling operations in parallel using the ThreadPool.QueueUserWorkerItem, the queue for crawling the sitemap is added to the Thread queue rather than adding it to a queue in memory. Once a thread becomes avaiable the crawlsitemap operation will happen and queue any subsequent sitemaps found below it. This actually increases performance quite a bit. Crawling the sitemaps takes up way less memory and is finished in about 30 seconds.
-
-To add the disallows I added them to the visited links tree with a flag saying they are not allowed. Then while searching the tree if I ever hit a node that isnt allowed I can immediately stop searching.
-
-After the sitemaps are crawled the linkes get added to the Azure LinkQueue and are popped off one by one to be crawled. Again, I parallelized this with the ThreadPool so each operation is executed as soon as a thread becomes available. Each time the crawler crawls a url it checks to see if it has not crawled it already and if not adds it to the visited links and will crawl it. The visited links list is actually a version of the trie tree, where the first level of nodes are the domains and subsequent levels are the paths. I spent a lot of time optimizing this for the crawler. Whenever I add a url to the tree, I have already searched to see if it exists. The search traverses the tree for the last node it can find with the path given, if there is more to the path in the url it starts from the last node it found and adds the rest of the path.  
-
-Indexed urls are added to a queue and then added in increasing batch size up to a maximum size of 1000. The crawler actually gains speed over time because more threads are being allocated. In order to follow this progression, I increase the number of url's added at once to the Table by 10.
-
-When the Web Crawler starts, it updates the dashboard table every second. I ran into concurrency issues with the Azure table running on multiple threads so I had to perform the table update on interval on a single thread. However, the crawler contains a dashboard object that it updates anytime an update is necessary, like changing the state, or adding urls to last 10 crawled. The changes just show up in the table every second.
-
-To change the state of the worker role, I used another azure queue to sent it state change messages. If the worker has a state of new, on start it adds the robots.txt files, otherwise it just resumes crawling. Stopping the crawler just prevents new urls from being dequeued from the azure queue. The crawler is still finishing some threds that were already crawling.
-
-Storing visited links in the Azure table I used the domain as the primary key and the path as the row key. This makes it really easy to search for a page.
-
-I created a visual dashboard that updates itself every second and has controls to start, stop, and clear the cralwer. 
 
 https://github.com/tallen94/WebCrawler.git
-To view the Dashboard: tallenwebcrawler.cloudapp.net
