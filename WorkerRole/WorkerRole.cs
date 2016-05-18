@@ -50,7 +50,7 @@ namespace WorkerRole
                             crawler.Start();
                             break;
                         case "Clear Index":
-                            //crawler.ClearIndex();
+                            crawler.ClearIndex();
                             break;
                         default:
                             break;
@@ -73,10 +73,6 @@ namespace WorkerRole
             while (true) {
                 Task.Delay(100);
                 crawler.UpdateDashboard();
-                /*
-                if (DateTime.Now.Hour == 9) {
-                    crawler.WriteVisited();
-                }*/
             }
         }
 
@@ -87,10 +83,6 @@ namespace WorkerRole
 
             // For information on handling configuration changes
             // see the MSDN topic at http://go.microsoft.com/fwlink/?LinkId=166357.
-            /*
-            if (crawler.CurrentState().Equals("Crawling")) {
-                crawler.RebuildVisited();
-            }*/
             bool result = base.OnStart();
             Trace.TraceInformation("WorkerRole has been started");
             ThreadPool.QueueUserWorkItem(o => MonitorDashboard());

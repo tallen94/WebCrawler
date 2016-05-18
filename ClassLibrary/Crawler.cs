@@ -60,14 +60,6 @@ namespace ClassLibrary {
             return visitedLinks;
         }
 
-        public bool RebuildVisited() {
-            return visitedLinks.ReBuildIfCan();
-        }
-
-        public void WriteVisited() {
-            ThreadPool.QueueUserWorkItem(o => visitedLinks.SaveTree());
-        }
-
         public Dictionary<string, string> GetDashboard() {
             Dictionary<string, string> temp = new Dictionary<string, string>();
             temp.Add("crawlingstate", dashboard.CrawlingState);
@@ -256,7 +248,7 @@ namespace ClassLibrary {
             if (title != null) {
                 entity.Title = title.InnerText;
                 entity.link = uri.AbsoluteUri;
-                entity.LinkTimestamp = DateTime.Now;
+                entity.LinkTimestamp = DateTime.Now.ToString();
                 LinkEntityQueue.Enqueue(entity);
                 AddToLast10(uri.AbsoluteUri);
                 if (LinkEntityQueue.Count >= maxBatch) {

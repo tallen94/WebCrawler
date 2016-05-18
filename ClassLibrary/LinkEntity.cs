@@ -18,6 +18,6 @@ namespace ClassLibrary {
         
         public string link { get; set; }
         public string Title { get; set; }
-        public DateTime LinkTimestamp { get; set; }
+        public string LinkTimestamp { get; set; }
     }
 }
