@@ -33,16 +33,15 @@ namespace WorkerRole
             while(true) {
                 CloudQueueMessage command = crawler.CommandQueue.GetMessage(TimeSpan.FromMinutes(5));
                 if (command != null) {
-                    Debug.WriteLine(command.AsString);
                     switch (command.AsString) {
                         case "New Dashboard":
-                            crawler.NewDashboard();
+                            //crawler.NewDashboard();
                             break;
                         case "New Crawl":
                             crawler.NewCrawl();
                             break;
                         case "Write Visited":
-                            crawler.WriteVisited();
+                            //crawler.WriteVisited();
                             break;
                         case "Stop":
                             crawler.Stop();
@@ -51,7 +50,7 @@ namespace WorkerRole
                             crawler.Start();
                             break;
                         case "Clear Index":
-                            crawler.ClearIndex();
+                            //crawler.ClearIndex();
                             break;
                         default:
                             break;

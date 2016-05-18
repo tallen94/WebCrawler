@@ -49,7 +49,7 @@ namespace ClassLibrary {
             LinkEntityQueue = new Queue<LinkEntity>();
             visitedLinks = new TrieTree();
 
-            NewDashboard();
+            PullDashboard();
         }
 
         public string CurrentState() {
