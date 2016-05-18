@@ -20,5 +20,7 @@ namespace ClassLibrary {
         public Int64 SizeOfQueue { get; set; }
         public Int64 SizeOfTable { get; set; }
         public string errorUris { get; set; }
+        public string CrawlingFor { get; set; }
+        public string BeganCrawlingAt { get; set; }
     }
 }

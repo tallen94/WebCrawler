@@ -34,6 +34,9 @@ namespace WorkerRole
                 CloudQueueMessage state = crawler.StateQueue.GetMessage(TimeSpan.FromMinutes(5));
                 if (state != null) {
                     switch (state.AsString) {
+                        case "New Crawl":
+                            crawler.NewCrawl();
+                            break;
                         case "Stop":
                             crawler.Stop();
                             break;

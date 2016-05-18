@@ -35,8 +35,11 @@ namespace WebRole {
                 CloudQueueMessage msg2 = new CloudQueueMessage("http://bleacherreport.com/robots.txt");
                 crawler.LinkQueue.AddMessage(msg);
                 crawler.LinkQueue.AddMessage(msg2);
+                crawler.SendCommand("New Crawl");
+            } else {
+                crawler.SendCommand("Start");
             }
-            crawler.SendCommand("Start");
+            
         }
 
         [WebMethod]

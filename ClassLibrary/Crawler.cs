@@ -29,6 +29,7 @@ namespace ClassLibrary {
         private Queue<LinkEntity> LinkEntityQueue;
         private TrieTree visitedLinks;
         private Dashboard dashboard;
+        private DateTime startTime;
 
         private Int64 maxBatch;
 
@@ -40,8 +41,6 @@ namespace ClassLibrary {
             StateQueue = QueueClient.GetQueueReference("statequeue");
             LinkTable = TableClient.GetTableReference("sitetable");
             DashboardTable = TableClient.GetTableReference("dashboardtable");
-
-            
 
             LinkQueue.CreateIfNotExists();
             LinkTable.CreateIfNotExists();
@@ -68,6 +67,8 @@ namespace ClassLibrary {
             temp.Add("sizeofqueue", dashboard.SizeOfQueue.ToString());
             temp.Add("sizeoftable", dashboard.SizeOfTable.ToString());
             temp.Add("errorurls", dashboard.errorUris);
+            temp.Add("beganlastcrawl", dashboard.BeganCrawlingAt);
+            temp.Add("crawlingfor", dashboard.CrawlingFor);
 
             return temp;
         }
@@ -78,6 +79,14 @@ namespace ClassLibrary {
             TableResult result = LinkTable.Execute(retrieve);
             LinkEntity entity = ((LinkEntity)result.Result);
             return entity.Title;
+        }
+
+        public void NewCrawl() {
+            DateTime begin = DateTime.Now;
+            TimeSpan time = DateTime.Now.Subtract(begin);
+            dashboard.CrawlingFor = time.ToString();
+            dashboard.BeganCrawlingAt = begin.ToString();
+            Start();
         }
 
         public void Start() {
@@ -274,6 +283,13 @@ namespace ClassLibrary {
             dashboard.CpuUsage = cpu.NextValue();
             dashboard.RamAvailable = mem.NextValue();
             dashboard.ThreadCount = threadCt.NextValue();
+
+            if (dashboard.CrawlingState.Equals("Crawling")) {
+                DateTime begin = Convert.ToDateTime(dashboard.BeganCrawlingAt);
+                TimeSpan timespan = DateTime.Now.Subtract(begin);
+                string fmt = "hh\\:mm\\:ss";
+                dashboard.CrawlingFor = timespan.Days + ":" + timespan.ToString(fmt);
+            }
         }
 
         public void NewDashboard() {
@@ -285,6 +301,9 @@ namespace ClassLibrary {
             dashboard.SizeOfQueue = 0;
             dashboard.SizeOfTable = 0;
             dashboard.errorUris = "[]";
+            dashboard.BeganCrawlingAt = "";
+            dashboard.CrawlingFor = "0:00:00:00";
+            
             LinkQueue.Clear();
         }
 

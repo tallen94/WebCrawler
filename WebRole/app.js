@@ -3,11 +3,10 @@
 angular.module("WebCrawler", [])
     .controller("DashboardCtrl", function ($scope, $http, $timeout) {
         $scope.title = "Big Bertha";
-
         var timer;
         function UpdateDashboard() {
             timer = $timeout(function () {
-
+                
             }, 1000);
 
             timer.then(function () {
