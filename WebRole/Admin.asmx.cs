@@ -59,13 +59,6 @@ namespace WebRole {
             JavaScriptSerializer s = new JavaScriptSerializer();
             return s.Serialize(obj);
         }
-
-        public void MonitorDashboard() {
-            while (true) {
-                Task.Delay(100);
-                crawler.PullDashboard();
-            }
-        }
     }
 }
 /// <summary>

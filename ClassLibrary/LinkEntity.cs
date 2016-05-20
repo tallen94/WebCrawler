@@ -16,7 +16,7 @@ namespace ClassLibrary {
 
         public LinkEntity() { }
         
-        public string link { get; set; }
+        public string Link { get; set; }
         public string Title { get; set; }
         public string LinkTimestamp { get; set; }
     }

@@ -50,7 +50,8 @@ namespace WorkerRole
                             crawler.Start();
                             break;
                         case "Clear Index":
-                            crawler.ClearIndex();
+                            // This is commented so the index wont get cleared unless manually
+                            //crawler.ClearIndex();
                             break;
                         default:
                             break;
@@ -58,7 +59,7 @@ namespace WorkerRole
                     crawler.CommandQueue.DeleteMessage(command);
                 }
                 if (crawler.CurrentState().Equals("Crawling")) {
-                    CloudQueueMessage link = crawler.LinkQueue.GetMessage();
+                    CloudQueueMessage link = crawler.LinkQueue.GetMessage(TimeSpan.FromMinutes(5));
                     if (link != null) {
                         try {
                             crawler.LinkQueue.DeleteMessage(link);
