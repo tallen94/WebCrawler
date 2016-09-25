@@ -22,5 +22,8 @@ namespace ClassLibrary {
         public string errorUris { get; set; }
         public string CrawlingFor { get; set; }
         public string BeganCrawlingAt { get; set; }
+        public string TimeOfLastTweet { get; set; }
+        public Int64 NumTitlesInTree { get; set; }
+        public string LastTitleAdded { get; set; }
     }
 }

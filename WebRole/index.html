@@ -1,7 +1,7 @@
 ﻿<!DOCTYPE html>
 <html ng-app="WebCrawler" ng-controller="DashboardCtrl">
 <head>
-    <title></title>
+    <title>WebCrawler</title>
 	<meta charset="utf-8" />
     <script src="https://cdnjs.cloudflare.com/ajax/libs/angular.js/1.5.5/angular.min.js"></script>
     
@@ -15,7 +15,7 @@
 
     <div class="search container">
         <div class="form-group">
-            <input placeholder="serch index" class="form-control"/>
+            <input placeholder="serch index" class="form-control" ng-model="query" ng-change="search()"/>
         </div>
         <button class="btn btn-primary" ng-disabled="dashboard.sizeoftable < 1">Search</button>
     </div>
@@ -44,8 +44,8 @@
                 <li class="control"><button class="btn btn-primary" ng-click="sendStart()" ng-disabled="dashboard.crawlingstate == 'Deleting Index'">Start</button></li>
                 <li class="control"><button class="btn" ng-click="sendCommand('Stop')"  ng-disabled="dashboard.crawlingstate == 'Deleting Index'">Stop</button></li>
                 <li class="control"><button class="btn" ng-click="sendCommand('Clear Index')"  ng-disabled="dashboard.crawlingstate == 'Deleting Index'">Clear Index</button></li>
-                <!--<li class="control"><button class="btn" ng-click="sendCommand('Write Visited')" ng-disabled="dashboard.crawlingstate == 'Deleting Index'">Write Visited</button></li>
-                <li class="control"><button class="btn" ng-click="sendCommand('New Dashboard')">New Dashboard</button></li>-->
+                <li class="control"><button class="btn" ng-click="sendCommand('Write Visited')" ng-disabled="dashboard.crawlingstate == 'Deleting Index'">Write Visited</button></li>
+                <li class="control"><button class="btn" ng-click="sendCommand('New Dashboard')">New Dashboard</button></li>
             </ul>
         </div>
     </div>

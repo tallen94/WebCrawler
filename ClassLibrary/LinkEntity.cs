@@ -18,6 +18,11 @@ namespace ClassLibrary {
         
         public string Link { get; set; }
         public string Title { get; set; }
-        public string LinkTimestamp { get; set; }
+        public string Lastmod { get; set; }
+        public int PageRepeats { get; set; }
+        public string KeyWords { get; set; }
+        public string Thumbnail { get; set; }
+        public string Description { get; set; }
+        public string Images { get; set; }
     }
 }

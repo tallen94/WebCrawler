@@ -44,5 +44,17 @@ angular.module("WebCrawler", [])
         $scope.asArray = function (arr) {
             return JSON.parse(arr);
         }
+
+        $scope.search = function () {
+            var config = {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            };
+            $http.post("Admin.asmx/GetPages", { s: $scope.query }, config).then(
+                function (response) {
+                    console.log(JSON.parse(response.data.d));
+                }
+            );
+        }
     });
    

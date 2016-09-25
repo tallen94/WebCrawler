@@ -38,6 +38,14 @@
     <ServiceConfiguration Include="ServiceConfiguration.Cloud.cscfg" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\Tweeter\Tweeter.csproj">
+      <Name>Tweeter</Name>
+      <Project>{cb90dc7f-1774-428c-b066-d6c89a9f2f5e}</Project>
+      <Private>True</Private>
+      <RoleType>Worker</RoleType>
+      <RoleName>Tweeter</RoleName>
+      <UpdateDiagnosticsConnectionStringOnPublish>True</UpdateDiagnosticsConnectionStringOnPublish>
+    </ProjectReference>
     <ProjectReference Include="..\WebRole\WebRole.csproj">
       <Name>WebRole</Name>
       <Project>{e04121ef-dc6c-48f0-8f97-6ee6e5340ab7}</Project>
@@ -57,15 +65,14 @@
   </ItemGroup>
   <ItemGroup>
     <Folder Include="Profiles" />
+    <Folder Include="TweeterContent\" />
     <Folder Include="WebRoleContent\" />
     <Folder Include="WorkerRoleContent\" />
   </ItemGroup>
   <ItemGroup>
+    <DiagnosticsConfiguration Include="TweeterContent\diagnostics.wadcfgx" />
     <DiagnosticsConfiguration Include="WebRoleContent\diagnostics.wadcfgx" />
     <DiagnosticsConfiguration Include="WorkerRoleContent\diagnostics.wadcfgx" />
-  </ItemGroup>
-  <ItemGroup>
-    <PublishProfile Include="Profiles\tallenwebcrawlerProduction.azurePubxml" />
   </ItemGroup>
   <!-- Import the target files for this project template -->
   <PropertyGroup>

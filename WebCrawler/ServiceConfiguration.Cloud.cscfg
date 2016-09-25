@@ -3,14 +3,21 @@
   <Role name="WebRole">
     <Instances count="1" />
     <ConfigurationSettings>
-      <Setting name="Microsoft.WindowsAzure.Plugins.Diagnostics.ConnectionString" value="UseDevelopmentStorage=true" />
+      <Setting name="Microsoft.WindowsAzure.Plugins.Diagnostics.ConnectionString" value="DefaultEndpointsProtocol=https;AccountName=tallenwebcrawler;AccountKey=ot+8RNOFolyYrjnXD46GvOh9xQGmvFQVul6XhuBQ2ZbN5mYoJRPSt6xQ6dhmX1Q71IU6QFRJKhGgKWHAU+982w==" />
       <Setting name="APPINSIGHTS_INSTRUMENTATIONKEY" value="29f941a5-e84e-40a8-be4d-2dab438a8f04" />
     </ConfigurationSettings>
   </Role>
   <Role name="WorkerRole">
     <Instances count="1" />
     <ConfigurationSettings>
-      <Setting name="Microsoft.WindowsAzure.Plugins.Diagnostics.ConnectionString" value="UseDevelopmentStorage=true" />
+      <Setting name="Microsoft.WindowsAzure.Plugins.Diagnostics.ConnectionString" value="DefaultEndpointsProtocol=https;AccountName=tallenwebcrawler;AccountKey=ot+8RNOFolyYrjnXD46GvOh9xQGmvFQVul6XhuBQ2ZbN5mYoJRPSt6xQ6dhmX1Q71IU6QFRJKhGgKWHAU+982w==" />
+      <Setting name="APPINSIGHTS_INSTRUMENTATIONKEY" value="29f941a5-e84e-40a8-be4d-2dab438a8f04" />
+    </ConfigurationSettings>
+  </Role>
+  <Role name="Tweeter">
+    <Instances count="1" />
+    <ConfigurationSettings>
+      <Setting name="Microsoft.WindowsAzure.Plugins.Diagnostics.ConnectionString" value="DefaultEndpointsProtocol=https;AccountName=tallenwebcrawler;AccountKey=ot+8RNOFolyYrjnXD46GvOh9xQGmvFQVul6XhuBQ2ZbN5mYoJRPSt6xQ6dhmX1Q71IU6QFRJKhGgKWHAU+982w==" />
       <Setting name="APPINSIGHTS_INSTRUMENTATIONKEY" value="29f941a5-e84e-40a8-be4d-2dab438a8f04" />
     </ConfigurationSettings>
   </Role>

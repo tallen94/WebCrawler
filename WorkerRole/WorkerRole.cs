@@ -26,22 +26,23 @@ namespace WorkerRole
         private readonly ManualResetEvent runCompleteEvent = new ManualResetEvent(false);
 
         private static Crawler crawler = new Crawler();
+        private static DateTime lastPing = DateTime.Now;
 
         public override void Run()
         {
             Trace.TraceInformation("WorkerRole is running");
             while(true) {
-                CloudQueueMessage command = crawler.CommandQueue.GetMessage(TimeSpan.FromMinutes(5));
+                CloudQueueMessage command = AzureStorage.CommandQueue.GetMessage(TimeSpan.FromMinutes(5));
                 if (command != null) {
                     switch (command.AsString) {
                         case "New Dashboard":
-                            //crawler.NewDashboard();
+                            crawler.NewDashboard();
                             break;
                         case "New Crawl":
                             crawler.NewCrawl();
                             break;
                         case "Write Visited":
-                            //crawler.WriteVisited();
+                            crawler.WriteVisited();
                             break;
                         case "Stop":
                             crawler.Stop();
@@ -51,18 +52,18 @@ namespace WorkerRole
                             break;
                         case "Clear Index":
                             // This is commented so the index wont get cleared unless manually
-                            //crawler.ClearIndex();
+                            crawler.ClearIndex();
                             break;
                         default:
                             break;
                     }
-                    crawler.CommandQueue.DeleteMessage(command);
+                    AzureStorage.CommandQueue.DeleteMessage(command);
                 }
                 if (crawler.CurrentState().Equals("Crawling")) {
-                    CloudQueueMessage link = crawler.LinkQueue.GetMessage(TimeSpan.FromMinutes(5));
+                    CloudQueueMessage link = AzureStorage.LinkQueue.GetMessage(TimeSpan.FromMinutes(5));
                     if (link != null) {
                         try {
-                            crawler.LinkQueue.DeleteMessage(link);
+                            AzureStorage.LinkQueue.DeleteMessage(link);
                             crawler.CrawlUrl(link.AsString);
                         } catch { }
                     }
@@ -74,7 +75,16 @@ namespace WorkerRole
             while (true) {
                 Task.Delay(100);
                 crawler.UpdateDashboard();
+                if ((DateTime.Now - lastPing) >= new TimeSpan(0, 15, 0)) {
+                    PingSearchSuggestions();
+                    lastPing = DateTime.Now;
+                }
             }
+        }
+
+        private void PingSearchSuggestions() {
+            HttpWebRequest request = (HttpWebRequest)WebRequest.Create("http://tallensearchengine.cloudapp.com/SearchSuggestions.asmx/BuildTrie");
+            WebResponse response = request.GetResponse();
         }
 
         public override bool OnStart()
@@ -85,8 +95,11 @@ namespace WorkerRole
             // For information on handling configuration changes
             // see the MSDN topic at http://go.microsoft.com/fwlink/?LinkId=166357.
             bool result = base.OnStart();
-            Trace.TraceInformation("WorkerRole has been started");
             ThreadPool.QueueUserWorkItem(o => MonitorDashboard());
+            if (crawler.WasCrawling()) {
+                crawler.RebuildVisited();
+            }
+            Trace.TraceInformation("WorkerRole has been started");
             return result;
         }
 

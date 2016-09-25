@@ -11,11 +11,13 @@ namespace ClassLibrary {
         public string path;
         public ConcurrentDictionary<string, TrieNode> children;
         public bool isAllowed;
+        public bool isEnd;
 
         public TrieNode(string path) {
             children = new ConcurrentDictionary<string, TrieNode>();
             this.path = path;
             this.isAllowed = true;
+            this.isEnd = false;
         }
 
         public ICollection<TrieNode> GetChildren() {

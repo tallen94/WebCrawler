@@ -22,4 +22,10 @@
       <Setting name="APPINSIGHTS_INSTRUMENTATIONKEY" />
     </ConfigurationSettings>
   </WorkerRole>
+  <WorkerRole name="Tweeter" vmsize="Small">
+    <ConfigurationSettings>
+      <Setting name="Microsoft.WindowsAzure.Plugins.Diagnostics.ConnectionString" />
+      <Setting name="APPINSIGHTS_INSTRUMENTATIONKEY" />
+    </ConfigurationSettings>
+  </WorkerRole>
 </ServiceDefinition>

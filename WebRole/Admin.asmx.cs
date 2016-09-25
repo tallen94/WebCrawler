@@ -13,6 +13,10 @@ using System.Web.Script.Serialization;
 using System.Threading.Tasks;
 using System.Threading;
 using System.Diagnostics;
+using Microsoft.WindowsAzure.Storage.Table;
+using System.Collections.Concurrent;
+using System.Text.RegularExpressions;
+using System.Web.Caching;
 
 namespace WebRole {
     /// <summary>
@@ -27,19 +31,19 @@ namespace WebRole {
     public class Admin : System.Web.Services.WebService {
 
         private static Crawler crawler = new Crawler();
+        private static Cache cache = HttpRuntime.Cache;
 
         [WebMethod]
         public void StartCrawling() {
             if (crawler.CurrentState().Equals("Clear")) {
                 CloudQueueMessage msg = new CloudQueueMessage("http://www.cnn.com/robots.txt");
                 CloudQueueMessage msg2 = new CloudQueueMessage("http://bleacherreport.com/robots.txt");
-                crawler.LinkQueue.AddMessage(msg);
-                crawler.LinkQueue.AddMessage(msg2);
+                AzureStorage.LinkQueue.AddMessage(msg);
+                AzureStorage.LinkQueue.AddMessage(msg2);
                 crawler.SendCommand("New Crawl");
             } else {
                 crawler.SendCommand("Start");
             }
-            
         }
 
         [WebMethod]
@@ -48,8 +52,74 @@ namespace WebRole {
         }
 
         [WebMethod]
-        public string GetPageTitle(string url) {
-            return crawler.GetTitleForUrl(url);
+        [ScriptMethod(UseHttpGet = true, ResponseFormat = ResponseFormat.Json)]
+        public void GetPages(string query, string callback, int page) {
+            JavaScriptSerializer serializer = new JavaScriptSerializer();
+            string strip = Regex.Replace(query, @"[^a-zA-Z0-9 ]+", "").ToLower();
+            LinkEntity[][] data;
+            if (cache[strip] == null) {
+                string[] splitQuery = strip.Split(' ');
+                List<LinkEntity> results = new List<LinkEntity>();
+                foreach (string word in splitQuery) {
+                    var tableResults = from entity in AzureStorage.LinkTable.CreateQuery<LinkEntity>()
+                                       where entity.PartitionKey == word  
+                                       select entity;
+                    
+                    foreach (LinkEntity obj in tableResults.ToArray()) {
+                        results.Add(obj);
+                    }
+                }
+
+                var sorted = results.ToArray()
+                    .GroupBy(entity => entity.Title)
+                    .Select(grp => grp.First())
+                    .OrderByDescending(entity => Rank(entity, strip))
+                    .ThenByDescending(entity => entity.Lastmod)
+                    .Select((entity, index) => new { entity, index })
+                    .GroupBy(a => a.index / 20)
+                    .Select((grp => grp.Select(g => g.entity).ToArray()))
+                    .ToArray();
+
+                if (sorted.Count() > 20) {
+                    sorted = sorted.Take(20).ToArray();
+                }
+
+                if (sorted.Count() > 0 && cache[strip] == null) {
+                    cache.Insert(strip, sorted, null, Cache.NoAbsoluteExpiration, new TimeSpan(0, 5, 0));
+                }
+                
+                data = sorted as LinkEntity[][];
+            } else {
+                data = cache[strip] as LinkEntity[][];
+            }
+
+            var jsonData = "";
+            if (data.Length > 0) {
+                jsonData = serializer.Serialize(new { data = data[page], numPages = data.Length });
+            }
+
+            var response = callback + "(" + jsonData + ");";
+            Context.Response.Clear();
+            Context.Response.ContentType = "application/json";
+            Context.Response.Write(response);
+            Context.Response.End();
+        }
+
+        private float Rank(LinkEntity entity, string query) {
+            float rank = 0;
+            string[] pkSplit = entity.RowKey.Split('|')[0].Split(' ');
+            string[] querySplit = query.Split(' ');
+            foreach (string word in querySplit) {
+                if (pkSplit.Contains(word)) {
+                    rank++;
+                }
+            }
+
+            Uri uri = new Uri(entity.Link);
+            if (uri.Segments.Contains("index.html") && rank > 0) {
+                rank++;
+            }
+            return rank / uri.Segments.Count();
         }
 
         [WebMethod]

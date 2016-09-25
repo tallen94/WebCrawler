@@ -17,14 +17,6 @@ using Newtonsoft.Json;
 
 namespace ClassLibrary {
     public class Crawler {
-
-        private static CloudStorageAccount StorageAccount;
-        private CloudQueueClient QueueClient;
-        private CloudTableClient TableClient;
-        public CloudQueue LinkQueue;
-        public CloudQueue CommandQueue;
-        public CloudTable LinkTable;
-        public CloudTable DashboardTable;
         
         private Queue<LinkEntity> LinkEntityQueue;
         private TrieTree visitedLinks;
@@ -33,29 +25,16 @@ namespace ClassLibrary {
         private Int64 maxBatch;
 
         public Crawler() {
-            StorageAccount = CloudStorageAccount.Parse("DefaultEndpointsProtocol=https;AccountName=tallenwebcrawler;AccountKey=ot+8RNOFolyYrjnXD46GvOh9xQGmvFQVul6XhuBQ2ZbN5mYoJRPSt6xQ6dhmX1Q71IU6QFRJKhGgKWHAU+982w==");
-            QueueClient = StorageAccount.CreateCloudQueueClient();
-            TableClient = StorageAccount.CreateCloudTableClient();
-            /* ONLY USE FOR RELEASE VERSIONS
-            LinkQueue = QueueClient.GetQueueReference("linkqueue");
-            CommandQueue = QueueClient.GetQueueReference("commandqueue");
-            LinkTable = TableClient.GetTableReference("sitetable");
-            DashboardTable = TableClient.GetTableReference("dashboardtable");
-            */
-            LinkQueue = QueueClient.GetQueueReference("testlinkqueue");
-            CommandQueue = QueueClient.GetQueueReference("testcommandqueue");
-            LinkTable = TableClient.GetTableReference("testsitetable");
-            DashboardTable = TableClient.GetTableReference("testdashboardtable");
-
-            LinkQueue.CreateIfNotExists();
-            LinkTable.CreateIfNotExists();
-            CommandQueue.CreateIfNotExists();
-            DashboardTable.CreateIfNotExists();
-            maxBatch = 10;
+            AzureStorage.CreateAll();
+            maxBatch = 20;
             LinkEntityQueue = new Queue<LinkEntity>();
             visitedLinks = new TrieTree();
-
+            dashboard = new Dashboard();
             PullDashboard();
+            int worker = 0;
+            int io = 0;
+            ThreadPool.GetMaxThreads(out worker, out io);
+            ThreadPool.SetMaxThreads(((int)(worker + worker * (.2))), io);
         }
 
         public string CurrentState() {
@@ -64,6 +43,20 @@ namespace ClassLibrary {
 
         public TrieTree GetVisitedLinks() {
             return visitedLinks;
+        }
+
+        public bool WasCrawling() {
+            return dashboard.SizeOfQueue > 0;
+        }
+
+        public void WriteVisited() {
+            visitedLinks.SaveTreeToBlob();
+        }
+
+        public void RebuildVisited() {
+            dashboard.CrawlingState = "Rebuilding Visited";
+            visitedLinks.DownloadVisitedLinks();
+            Start();
         }
 
         public Dictionary<string, string> GetDashboard() {
@@ -78,16 +71,10 @@ namespace ClassLibrary {
             temp.Add("errorurls", dashboard.errorUris);
             temp.Add("beganlastcrawl", dashboard.BeganCrawlingAt);
             temp.Add("crawlingfor", dashboard.CrawlingFor);
+            temp.Add("numtitlesintree", "" + dashboard.NumTitlesInTree);
+            temp.Add("lasttitleadded", "" + dashboard.LastTitleAdded);
 
             return temp;
-        }
-
-        public string GetTitleForUrl(string url) {
-            Uri uri = new Uri(url);
-            TableOperation retrieve = TableOperation.Retrieve<Dashboard>(uri.Authority, string.Join("@420;", uri.LocalPath.Split('/')));
-            TableResult result = LinkTable.Execute(retrieve);
-            LinkEntity entity = ((LinkEntity)result.Result);
-            return entity.Title;
         }
 
         public void NewCrawl() {
@@ -95,6 +82,7 @@ namespace ClassLibrary {
             TimeSpan time = DateTime.Now.Subtract(begin);
             dashboard.CrawlingFor = time.ToString();
             dashboard.BeganCrawlingAt = begin.ToString();
+            dashboard.TimeOfLastTweet = begin.ToString();
             Start();
         }
 
@@ -108,7 +96,7 @@ namespace ClassLibrary {
 
         public void SendCommand(string cmd) {
             CloudQueueMessage msg = new CloudQueueMessage(cmd);
-            CommandQueue.AddMessage(msg);
+            AzureStorage.CommandQueue.AddMessage(msg);
         }
 
         public void CrawlUrl(string url) {
@@ -143,14 +131,16 @@ namespace ClassLibrary {
         private void CrawlSitemap(Uri uri) {
             HtmlDocument page = GetHtmlDocumentFromUri(uri);
             if (page != null) {
-                HtmlNode[] sitemaps = page.DocumentNode.SelectNodes("//url").ToArray();
-                foreach (HtmlNode sitemap in sitemaps) {
-                    HtmlNode loc = sitemap.SelectSingleNode("//loc");
-                    Uri locUri = new Uri(loc.InnerText);
-                    if (!visitedLinks.HasPath(locUri)) {
-                        CloudQueueMessage msg = new CloudQueueMessage(loc.InnerText);
-                        LinkQueue.AddMessage(msg);
-                        dashboard.SizeOfQueue = dashboard.SizeOfQueue + 1;
+                HtmlNodeCollection sitemaps = page.DocumentNode.SelectNodes("//url");
+                if (sitemaps != null) {
+                    foreach (HtmlNode sitemap in sitemaps.ToArray()) {
+                        HtmlNode loc = sitemap.SelectSingleNode("//loc");
+                        Uri locUri = new Uri(loc.InnerText);
+                        if (!visitedLinks.HasPath(locUri)) {
+                            CloudQueueMessage msg = new CloudQueueMessage(loc.InnerText);
+                            AzureStorage.LinkQueue.AddMessage(msg);
+                            dashboard.SizeOfQueue = dashboard.SizeOfQueue + 1;
+                        }
                     }
                 }
             }
@@ -190,33 +180,34 @@ namespace ClassLibrary {
         private void CrawlSitemapIndex(Uri uri) {
             HtmlDocument page = GetHtmlDocumentFromUri(uri);
             if (page != null) {
-                HtmlNode[] sitemaps = page.DocumentNode.SelectNodes("//sitemap").ToArray();
-                foreach (HtmlNode sitemap in sitemaps) {
-                    HtmlNode loc = sitemap.SelectSingleNode("//loc");
-                    Uri locUri = new Uri(loc.InnerText);
-                    switch (locUri.Authority) {
-                        case "www.cnn.com":
-                            try {
-                                DateTime sitemapDate = Convert.ToDateTime(sitemap.LastChild.InnerText);
-                                if (sitemapDate.AddMonths(3).Month >= DateTime.Now.Month && sitemapDate.Year == DateTime.Now.Year) {
+                HtmlNodeCollection sitemaps = page.DocumentNode.SelectNodes("//sitemap");
+                if (sitemaps != null) {
+                    foreach (HtmlNode sitemap in sitemaps.ToArray()) {
+                        HtmlNode loc = sitemap.SelectSingleNode("//loc");
+                        Uri locUri = new Uri(loc.InnerText);
+                        switch (locUri.Authority) {
+                            case "www.cnn.com":
+                                try {
+                                    DateTime sitemapDate = Convert.ToDateTime(sitemap.LastChild.InnerText);
+                                    if (sitemapDate.AddMonths(3).Month >= DateTime.Now.Month && sitemapDate.Year == DateTime.Now.Year) {
+                                        ThreadPool.QueueUserWorkItem(o => EnqueueCrawlingSitemap(loc.InnerText));
+                                    }
+                                } catch (Exception e) { };
+                                break;
+                            case "bleacherreport.com":
+                                if (locUri.Segments.Length > 1 && locUri.Segments[1].Contains("nba")) {
                                     ThreadPool.QueueUserWorkItem(o => EnqueueCrawlingSitemap(loc.InnerText));
                                 }
-                            } catch (Exception e) { };
-                            break;
-                        case "bleacherreport.com":
-                            if (locUri.Segments.Length > 1 && locUri.Segments[1].Contains("nba")) {
-                                ThreadPool.QueueUserWorkItem(o => EnqueueCrawlingSitemap(loc.InnerText));
-                            }
-                            break;
-                        default:
-                            break;
-                    } 
+                                break;
+                            default:
+                                break;
+                        }
+                    }
                 }
             }
         }
 
         private void CrawlLink(Uri uri) {
-            LinkEntity entity = new LinkEntity(uri.Authority, Guid.NewGuid().ToString());
             HtmlDocument page = GetHtmlDocumentFromUri(uri);
             if(page == null) {
                 return;
@@ -239,43 +230,105 @@ namespace ClassLibrary {
                             Uri newUri = new Uri(link);
                             if (!visitedLinks.HasPath(newUri)) {
                                 CloudQueueMessage msg = new CloudQueueMessage(link);
-                                LinkQueue.AddMessage(msg);
+                                AzureStorage.LinkQueue.AddMessage(msg);
                                 IncrementQueueCount();
                             }
                         } catch (Exception e) {
                             AddErrorUrl(link);
                         }
-                    }
+                    } 
                 }
             }
+
             if (title != null) {
-                entity.Title = title.InnerText;
-                entity.Link = uri.AbsoluteUri;
-                entity.LinkTimestamp = DateTime.Now.ToString();
-                entity.ETag = "*";
-                LinkEntityQueue.Enqueue(entity);
+                string strip = Regex.Replace(title.InnerText, @"[.\- ]+", " ").ToLower(); // replace . and - with space
+                strip = Regex.Replace(strip, @"[^a-zA-Z0-9 ]+", ""); // remove all non alphanumeric characters
+                string[] words = strip.Split(' ').Distinct().ToArray();
+                foreach (string word in words) {
+                    if (!word.Equals("") || !word.Equals("a") || !word.Equals("and") || !word.Equals("the") || !word.Equals("i")) {
+                        LinkEntity entity = new LinkEntity(word, strip + " | " + Uri.EscapeDataString(uri.AbsoluteUri));
+                        entity = GetMetaTags(page.DocumentNode.SelectNodes("//meta").ToArray(), entity);
+                        entity.Images = JsonConvert.SerializeObject(GetImages(page.DocumentNode));
+                        entity.Title = title.InnerText;
+                        entity.Link = uri.AbsoluteUri;
+                        entity.PageRepeats = 0;
+                        entity.ETag = "*";
+                        LinkEntityQueue.Enqueue(entity);
+                    }
+                }
+                
+                if (ItIsTimeToTweet()) {
+                    CloudQueueMessage tweetUrl = new CloudQueueMessage(uri.AbsoluteUri);
+                    AzureStorage.TweetQueue.AddMessage(tweetUrl);
+                    dashboard.TimeOfLastTweet = DateTime.Now.ToString();
+                }
                 if (LinkEntityQueue.Count >= maxBatch) {
                     BatchAddToTable().Wait();
                 }
             }
         }
 
+        private LinkEntity GetMetaTags(HtmlNode[] metas, LinkEntity entity) {
+            foreach(HtmlNode meta in metas) {
+                HtmlAttribute name = meta.Attributes["name"];
+                if (name != null) {
+                    switch (name.Value) {
+                        case "lastmod":
+                            entity.Lastmod = meta.Attributes["content"].Value;
+                            break;
+                        case "thumbnail":
+                            entity.Thumbnail = meta.Attributes["content"].Value;
+                            break;
+                        case "keywords":
+                            entity.KeyWords = meta.Attributes["content"].Value;
+                            break;
+                        case "description":
+                            entity.Description = meta.Attributes["content"].Value;
+                            break;
+                        default:
+                            break;
+                    }
+                }
+            }
+            return entity;
+        }
+
+        private string[] GetImages(HtmlNode document) {
+            HtmlNodeCollection images = document.SelectNodes("//img");
+            string[] results = new string[0];
+            if (images != null) {
+                results = images.ToArray().Where(img => img.Attributes["src"] != null)
+                         .Select(img => img.Attributes["src"].Value)
+                         .Where(x => x.EndsWith(".jpg") || x.EndsWith(".jpeg"))
+                         .Distinct().ToArray();
+            }
+            return results;
+        }
+
+        private bool ItIsTimeToTweet() {
+            TimeSpan max = TimeSpan.FromMinutes(30.0);
+            TimeSpan timeSinceLastTweet = DateTime.Now.Subtract(Convert.ToDateTime(dashboard.TimeOfLastTweet));
+            return max.CompareTo(timeSinceLastTweet) < 0;
+        }
+
         private string CleanUrl(string url, string authority) {
             string cleanUrl = "";
-            if (url.Contains("http://") || url.Contains("https://")) {
-                if (url.Contains("cnn.com") || url.Contains("bleacherreport.com")) {
-                    cleanUrl = url;
-                }
-            } else {
-                if (url.Contains("cnn.com") || url.Contains("bleacherreport.com")) {
-                    if (url.Substring(0, 1).Equals("/")) {
-                        cleanUrl = "http:" + url;
-                    } else {
-                        cleanUrl = "http://" + url;
+            if (!url.Contains("realestate.money.cnn.com")) {
+                if ((url.Contains("http://") || url.Contains("https://"))) {
+                    if (url.Contains("cnn.com") || url.Contains("bleacherreport.com")) {
+                        cleanUrl = url;
                     }
                 } else {
-                    if (url.Substring(0, 1).Equals("/")) {
-                        cleanUrl = "http://" + authority + url;
+                    if (url.Contains("cnn.com") || url.Contains("bleacherreport.com")) {
+                        if (url.Substring(0, 1).Equals("/")) {
+                            cleanUrl = "http:" + url;
+                        } else {
+                            cleanUrl = "http://" + url;
+                        }
+                    } else {
+                        if (url.Substring(0, 1).Equals("/")) {
+                            cleanUrl = "http://" + authority + url;
+                        }
                     }
                 }
             }
@@ -285,7 +338,7 @@ namespace ClassLibrary {
         public void UpdateDashboard() {
             GetPerfCounters();
             TableOperation update = TableOperation.Replace(dashboard);
-            DashboardTable.Execute(update);
+            AzureStorage.DashboardTable.Execute(update);
         }
 
         public void GetPerfCounters() {
@@ -296,6 +349,7 @@ namespace ClassLibrary {
             double cpuMeasure = 0;
             for (int i = 0; i < 10; i++) {
                 cpuMeasure = cpuMeasure + cpu.NextValue();
+                Task.Delay(1000);
             }
             dashboard.CpuUsage = cpuMeasure / 10.0;
             dashboard.CpuUsage = cpu.NextValue();
@@ -307,14 +361,16 @@ namespace ClassLibrary {
                 TimeSpan timespan = DateTime.Now.Subtract(begin);
                 string fmt = "hh\\:mm\\:ss";
                 dashboard.CrawlingFor = timespan.Days + ":" + timespan.ToString(fmt);
+                if (timespan == new TimeSpan(10, 0, 0)) { 
+                    ThreadPool.QueueUserWorkItem(o => visitedLinks.SaveTreeToBlob());
+                }
             }
         }
 
         public void NewDashboard() {
-            dashboard = new Dashboard();
             visitedLinks.ClearTree();
             LinkEntityQueue.Clear();
-            LinkQueue.Clear();
+            AzureStorage.LinkQueue.Clear();
             dashboard.ETag = "*";
             dashboard.CrawlingState = "Clear";
             dashboard.last10Urls = "[]";
@@ -323,28 +379,25 @@ namespace ClassLibrary {
             dashboard.errorUris = "[]";
             dashboard.BeganCrawlingAt = "0:00:00:00";
             dashboard.CrawlingFor = "0:00:00:00";
+            dashboard.TimeOfLastTweet = "0:00:00:00";
         }
 
         public void PullDashboard() {
             TableOperation retrieve = TableOperation.Retrieve<Dashboard>("1", "1");
-            TableResult result = DashboardTable.Execute(retrieve);
+            TableResult result = AzureStorage.DashboardTable.Execute(retrieve);
             dashboard = ((Dashboard)result.Result);
         }
 
         public void ClearIndex() {
             dashboard.CrawlingState = "Deleting Index";
-            LinkTable.DeleteIfExists();
+            AzureStorage.LinkTable.DeleteIfExists();
             bool created = false;
             while (!created) {
                 try {
-                    LinkTable.CreateIfNotExists();
+                    AzureStorage.LinkTable.CreateIfNotExists();
                     created = true;
                 } catch (StorageException e) {
-                    if (e.RequestInformation.HttpStatusCode == 409) {
-                        Task.Delay(1000);
-                    } else {
-                        throw;
-                    }
+                    Task.Delay(1000 * 30);
                 }
             }
             NewDashboard();
@@ -378,11 +431,26 @@ namespace ClassLibrary {
                 try {
                     LinkEntity entity = LinkEntityQueue.Dequeue();
                     var task = Task.Factory.StartNew(() => {
-                        TableOperation insert = TableOperation.Insert(entity);
-                        LinkTable.Execute(insert);
+                        try {
+                            TableOperation insert = TableOperation.Insert(entity);
+                            AzureStorage.LinkTable.Execute(insert);
+                            dashboard.SizeOfTable = dashboard.SizeOfTable + 1;
+                        } catch (StorageException e) {
+                            if (e.RequestInformation.HttpStatusCode == 409) {
+                                try {
+                                    TableOperation retrieve = TableOperation.Retrieve<LinkEntity>(entity.PartitionKey, entity.RowKey);
+                                    TableResult result = AzureStorage.LinkTable.Execute(retrieve);
+                                    LinkEntity item = (LinkEntity)result.Result;
+
+                                    item.PageRepeats = item.PageRepeats + 1;
+
+                                    TableOperation update = TableOperation.Replace(item);
+                                    AzureStorage.LinkTable.Execute(update);
+                                } catch { }
+                            }
+                        }
                     });
                     AddToLast10(entity.Link);
-                    dashboard.SizeOfTable = dashboard.SizeOfTable + 1;
                     i++;
                     tasks.Add(task);
                 } catch (Exception e) {
@@ -394,6 +462,7 @@ namespace ClassLibrary {
             }
             await Task.WhenAll(tasks);
         }
+        
 
         private StreamReader GetStreamFromUri(Uri uri) {
             HttpWebRequest request = (HttpWebRequest)WebRequest.Create(uri.AbsoluteUri);
